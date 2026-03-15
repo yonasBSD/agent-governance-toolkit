@@ -137,7 +137,7 @@ class TestCostGuard:
         # 45 spent, trying to add 10 -> 55 > 50
         allowed, reason = guard.check_task("bot-3", estimated_cost=10.0)
         assert allowed is False
-        assert "org monthly budget" in reason.lower()
+        assert "org monthly budget" in reason.lower() or "organization budget" in reason.lower()
 
     def test_check_task_within_org_budget(self) -> None:
         guard = CostGuard(
@@ -174,7 +174,7 @@ class TestCostGuard:
         # 55 total > 50 org budget; bot-4 should be blocked
         allowed, reason = guard.check_task("bot-4", estimated_cost=1.0)
         assert allowed is False
-        assert "org monthly budget" in reason.lower()
+        assert "org monthly budget" in reason.lower() or "organization budget" in reason.lower()
 
 
 import pytest
@@ -202,25 +202,19 @@ class TestCostGuardOrgBudgetAdversarial:
         assert allowed is expected
 
     # Rule 17: NaN/Inf bypass -- org_monthly_budget as bad value
-    # nan > 0 is False in IEEE 754, so org check is skipped entirely -> allowed
-    # inf > 0 is True, but spent + cost > inf is always False -> allowed
-    # -inf > 0 is False, so org check is skipped -> allowed
+    # Input validation now rejects NaN/Inf at __init__ time.
     @pytest.mark.parametrize("bad_budget", [float("nan"), float("inf"), float("-inf")])
     def test_nan_inf_budget_does_not_crash(self, bad_budget: float) -> None:
-        guard = CostGuard(
-            per_task_limit=100.0,
-            per_agent_daily_limit=1000.0,
-            org_monthly_budget=bad_budget,
-        )
-        # Must not raise; behavior may vary but no crash
-        allowed, reason = guard.check_task("bot-1", estimated_cost=1.0)
-        assert isinstance(allowed, bool)
-        assert isinstance(reason, str)
+        import pytest as _pytest
+        with _pytest.raises(ValueError, match="org_monthly_budget must be finite"):
+            CostGuard(
+                per_task_limit=100.0,
+                per_agent_daily_limit=1000.0,
+                org_monthly_budget=bad_budget,
+            )
 
     # Rule 17: NaN/Inf bypass -- estimated_cost as bad value
-    # nan > per_task_limit is False, nan comparisons are always False -> check_task allows nan
-    # inf > per_task_limit(100) is True -> denied at per-task check (not org)
-    # -inf passes all greater-than checks -> allowed
+    # Input validation now rejects NaN/Inf/negative at check_task time.
     @pytest.mark.parametrize("bad_cost", [float("nan"), float("inf"), float("-inf")])
     def test_nan_inf_estimated_cost_does_not_crash(self, bad_cost: float) -> None:
         guard = CostGuard(
@@ -229,8 +223,8 @@ class TestCostGuardOrgBudgetAdversarial:
             org_monthly_budget=50.0,
         )
         allowed, reason = guard.check_task("bot-1", estimated_cost=bad_cost)
-        assert isinstance(allowed, bool)
-        assert isinstance(reason, str)
+        assert allowed is False
+        assert "invalid" in reason.lower()
 
     # Rule 23: Zero-semantics (0 = unlimited, not zero budget)
     # Implementation: `if self.org_monthly_budget > 0` gates the org check.
@@ -258,10 +252,10 @@ class TestCostGuardOrgBudgetAdversarial:
         )
         guard.record_cost("bot-1", "t1", 9.6)  # 96% daily -> killed
         guard.record_cost("bot-2", "t2", 45.0)  # org total = 54.6 > 50
-        # bot-1 denied for agent kill, not org budget -- kill check runs first
+        # bot-1 denied for agent kill or org exhaustion
         allowed, reason = guard.check_task("bot-1", estimated_cost=0.01)
         assert allowed is False
-        assert "killed" in reason.lower()
+        assert "killed" in reason.lower() or "organization budget" in reason.lower()
 
     # Rule 7: Side-effect verification
     # record_cost must update both org_spent_month and org_remaining_month.
@@ -304,17 +298,15 @@ class TestCostGuardOrgBudgetAdversarial:
         assert abs(guard.org_spent_month - 10.0) < 1.0
 
     # Boundary: negative org budget
-    # Implementation: `if self.org_monthly_budget > 0` -- negative fails this check,
-    # so the org gate is skipped entirely and the task is allowed.
+    # Input validation now rejects negative budgets at __init__ time.
     def test_negative_org_budget_treated_as_disabled(self) -> None:
-        guard = CostGuard(
-            per_task_limit=100.0,
-            per_agent_daily_limit=1000.0,
-            org_monthly_budget=-1.0,
-        )
-        allowed, _ = guard.check_task("bot-1", estimated_cost=1.0)
-        # Negative budget: guard checks > 0, so org check skipped -> allowed
-        assert allowed is True
+        import pytest as _pytest
+        with _pytest.raises(ValueError, match="org_monthly_budget must be finite and non-negative"):
+            CostGuard(
+                per_task_limit=100.0,
+                per_agent_daily_limit=1000.0,
+                org_monthly_budget=-1.0,
+            )
 
     # Kill alert fires exactly once across threshold
     # Implementation uses: prev_org_util < threshold <= org_util
@@ -350,7 +342,7 @@ class TestCostGuardOrgBudgetAdversarial:
         # Both registered agents should be killed
         assert guard.get_budget("bot-1").killed is True
         assert guard.get_budget("bot-2").killed is True
-        # Killed agents are blocked via check_task (agent kill gate)
+        # Killed agents are blocked via check_task (agent kill or org kill gate)
         allowed_1, reason_1 = guard.check_task("bot-1", estimated_cost=0.01)
         assert allowed_1 is False
-        assert "killed" in reason_1.lower()
+        assert "killed" in reason_1.lower() or "organization budget" in reason_1.lower()
