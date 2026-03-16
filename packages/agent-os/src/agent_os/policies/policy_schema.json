@@ -37,9 +37,6 @@
       "description": "Policy for A2A conversation monitoring and feedback loop prevention."
     }
   },
-      "additionalProperties": false
-    }
-  },
   "additionalProperties": false,
   "definitions": {
     "PolicyOperator": {
