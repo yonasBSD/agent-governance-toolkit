@@ -93,6 +93,12 @@ guides.
 | 29 | [Agent Discovery](29-agent-discovery.md) | Shadow AI scanning, inventory dedup, reconciliation, risk scoring, CI/CD integration | `agent-discovery` |
 | 30 | [Agent Lifecycle Management](30-agent-lifecycle.md) | Provisioning, approval workflows, credential rotation, orphan detection, decommissioning | `agentmesh-platform` |
 
+## Enterprise Identity
+
+| # | Tutorial | What You'll Learn | Package |
+|---|----------|-------------------|---------|
+| 31 | [Entra Agent ID Bridge](31-entra-agent-id-bridge.md) | Bridge AGT DIDs with Microsoft Entra Agent ID / Agent365, AKS workload identity, roles & responsibilities | `agentmesh-platform` |
+
 ## Extending the Toolkit
 
 | # | Tutorial | What You'll Learn | Package |
@@ -126,6 +132,7 @@ guides.
 3. [18 — Compliance Verification](18-compliance-verification.md) → regulatory grading
 4. [13 — Observability & Tracing](13-observability-and-tracing.md) → distributed tracing
 5. [26 — SBOM & Signing](26-sbom-and-signing.md) → supply chain security
+6. [31 — Entra Agent ID Bridge](31-entra-agent-id-bridge.md) → enterprise identity with Entra / Agent365
 
 ### 🤖 "I'm building multi-agent systems"
 
