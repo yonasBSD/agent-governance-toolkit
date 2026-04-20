@@ -23,9 +23,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
-  attestations: write
 
 env:
   REGISTRY: ghcr.io
@@ -34,6 +31,11 @@ env:
 jobs:
   build-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:

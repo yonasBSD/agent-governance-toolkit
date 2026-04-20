@@ -12,7 +12,7 @@
 
 ARG PYTHON_VERSION=3.11
 
-FROM python:${PYTHON_VERSION}-slim AS base
+FROM python:${PYTHON_VERSION}-slim@sha256:233de06753d30d120b1a3ce359d8d3be8bda78524cd8f520c99883bfe33964cf AS base
 
 LABEL maintainer="Microsoft Corporation"
 LABEL org.opencontainers.image.source="https://github.com/microsoft/agent-governance-toolkit"
